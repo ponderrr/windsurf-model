@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { STLExporter } from 'three/addons/exporters/STLExporter.js';
 import { loadSailShape } from './sailImage.js';
 import { loadBoardShape } from './boardImage.js';
 import { loadBoomShape } from './boomImage.js';
@@ -17,6 +18,7 @@ import { loadFinShape } from './finImage.js';
 import { createSail } from './sail.js';
 import { createHardware } from './hardware.js';
 import { createBoard, DECK_AT_TRACK, LEN } from './board.js';
+import { pointCloudify } from './pointCloud.js';
 
 /** Vertical offset so the kit floats above the contact shadow. */
 const FLOAT = 0.5;
@@ -65,6 +67,31 @@ async function init() {
   kit.position.y = FLOAT;
   scene.add(kit);
 
+  // Point-cloud rendering: sample every surface into colored points that
+  // follow the wind-deformed cloth. Press P to flip back to solid.
+  const cloud = pointCloudify(kit);
+  let pointsMode = true;
+
+  // Binary STL of the kit meshes, world-space, in whatever pose the wind
+  // has the cloth in right now. Sheets and tubes are open surfaces — fine
+  // for CAD/viewing; solidify before 3D printing.
+  const exportSTL = () => {
+    kit.updateMatrixWorld(true);
+    const data = new STLExporter().parse(kit, { binary: true });
+    const blob = new Blob([data], { type: 'model/stl' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'severne-mach.stl';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (k === 'p') { pointsMode = !pointsMode; cloud.setPointsMode(pointsMode); }
+    if (k === 'e') exportSTL();
+  });
+
   // Radial-gradient contact shadow (no shadow maps).
   const sc = document.createElement('canvas');
   sc.width = sc.height = 256;
@@ -106,6 +133,19 @@ async function init() {
 
   // Dev-only sanity check: reject NaN/Infinity in geometry.
   if (import.meta.env.DEV) {
+    window.__kit = kit;
+    // Manual frame step for environments where rAF is throttled (tests).
+    window.__tick = (t) => { sail.update(t); cloud.update(); controls.update(); renderer.render(scene, camera); };
+    // STL bytes as base64, for pulling exports out of headless sessions.
+    window.__stlBase64 = () => {
+      kit.updateMatrixWorld(true);
+      const data = new STLExporter().parse(kit, { binary: true });
+      const bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000)
+        bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      return btoa(bin);
+    };
     scene.traverse((o) => {
       const a = o.geometry?.attributes.position;
       if (!a) return;
@@ -124,6 +164,7 @@ async function init() {
   renderer.render(scene, camera); // paint immediately; rAF can be throttled in background tabs
   renderer.setAnimationLoop((t) => {
     sail.update(t / 1000);
+    cloud.update();
     controls.update();
     renderer.render(scene, camera);
   });
