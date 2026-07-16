@@ -27,6 +27,13 @@ const FLOAT = 0.5;
 /** Rig rake in radians (~19° aft). */
 const RIG_RAKE = -0.34;
 
+/** C-key color cycle order and the caption label for each mode. */
+const COLOR_MODES = ['texture', 'height', 'depth'];
+const COLOR_LABELS = { texture: 'texture photo', height: 'height gradient', depth: 'depth fade' };
+
+/** Multiplier applied per +/− keypress to the point size. */
+const SIZE_STEP = 1.25;
+
 /**
  * Initialize renderer, scene, kit assembly, controls, and animation loop.
  */
@@ -113,11 +120,33 @@ async function init() {
     URL.revokeObjectURL(a.href);
   };
 
+  // Transient key feedback in the caption bar; the static line is captured
+  // once at startup and restored 1.5 s after the last keypress.
+  const caption = document.getElementById('caption');
+  const captionHTML = caption.innerHTML;
+  let captionTimer;
+  const flashCaption = (text) => {
+    caption.textContent = text;
+    clearTimeout(captionTimer);
+    captionTimer = setTimeout(() => { caption.innerHTML = captionHTML; }, 1500);
+  };
+
   addEventListener('keydown', (e) => {
     const k = e.key.toLowerCase();
     if (k === 'p') { pointsMode = !pointsMode; cloud.setPointsMode(pointsMode); }
     if (k === 'e') exportSTL();
     if (k === 'g') exportGLB();
+    if (!pointsMode) return; // size/color keys only apply to the point cloud
+    if (k === '+' || k === '=' || k === '-' || k === '_') {
+      const grow = k === '+' || k === '=';
+      cloud.setPointSize(cloud.getPointSize() * (grow ? SIZE_STEP : 1 / SIZE_STEP));
+      flashCaption(`point size ${Math.round(cloud.getPointSize() * 1000)} mm`);
+    }
+    if (k === 'c') {
+      const next = COLOR_MODES[(COLOR_MODES.indexOf(cloud.getColorMode()) + 1) % COLOR_MODES.length];
+      cloud.setColorMode(next);
+      flashCaption(`color: ${COLOR_LABELS[next]}`);
+    }
   });
 
   // Radial-gradient contact shadow (no shadow maps).
@@ -162,6 +191,7 @@ async function init() {
   // Dev-only sanity check: reject NaN/Infinity in geometry.
   if (import.meta.env.DEV) {
     window.__kit = kit;
+    window.__cloud = cloud;
     // Manual frame step for environments where rAF is throttled (tests).
     window.__tick = (t) => { sail.update(t, !pointsMode); cloud.update(); controls.update(); renderer.render(scene, camera); };
     // STL bytes as base64, for pulling exports out of headless sessions.
