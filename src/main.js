@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { STLExporter } from 'three/addons/exporters/STLExporter.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { loadSailShape } from './sailImage.js';
 import { loadBoardShape } from './boardImage.js';
 import { loadBoomShape } from './boomImage.js';
@@ -86,10 +87,37 @@ async function init() {
     URL.revokeObjectURL(a.href);
   };
 
+  // Binary glTF of the kit's solid meshes only. Point clouds hang off each
+  // mesh as visible THREE.Points children (only their source materials are
+  // hidden in points mode), so GLTFExporter's onlyVisible default would
+  // otherwise embed ~220k point primitives alongside the solid geometry —
+  // hide the clouds for the parse, then restore whatever mode was active.
+  const glbArrayBuffer = async () => {
+    const clouds = [];
+    kit.traverse((o) => { if (o.isPoints) clouds.push(o); });
+    for (const c of clouds) c.visible = false;
+    try {
+      kit.updateMatrixWorld(true);
+      return await new GLTFExporter().parseAsync(kit, { binary: true });
+    } finally {
+      for (const c of clouds) c.visible = pointsMode;
+    }
+  };
+  const exportGLB = async () => {
+    const buffer = await glbArrayBuffer();
+    const blob = new Blob([buffer], { type: 'model/gltf-binary' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'severne-mach.glb';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
   addEventListener('keydown', (e) => {
     const k = e.key.toLowerCase();
     if (k === 'p') { pointsMode = !pointsMode; cloud.setPointsMode(pointsMode); }
     if (k === 'e') exportSTL();
+    if (k === 'g') exportGLB();
   });
 
   // Radial-gradient contact shadow (no shadow maps).
@@ -146,6 +174,8 @@ async function init() {
         bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
       return btoa(bin);
     };
+    // GLB bytes, for re-parsing/inspecting exports from headless sessions.
+    window.__glbBytes = async () => new Uint8Array(await glbArrayBuffer());
     scene.traverse((o) => {
       const a = o.geometry?.attributes.position;
       if (!a) return;
