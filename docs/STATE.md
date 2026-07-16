@@ -28,6 +28,11 @@
   silhouettes). Entry point src/main.js; per-part builders in src/.
 
 ## Live state
+- 2026-07-16 — Task C merged to dev (4815acd): `G` key downloads a binary
+  glTF (.glb) of the kit's solid meshes (GLTFExporter, embedded textures);
+  point clouds are hidden for the parse and restored to whatever points-mode
+  state was active beforehand; dev-only `window.__glbBytes()` added for
+  re-parsing exports headlessly; README documents the `G` control.
 - 2026-07-16 — Task B merged to dev (bf126ab): README + docs now document
   the fork's point-cloud default, `P`/`E` controls, and the fork-vs-upstream
   positioning (live demo runs upstream's solid render); new hero-points.png
@@ -71,7 +76,15 @@
   becomes NaN and frameKit() NaN-poisons camera.position permanently (no
   resize recovers it) — size the pane first, then (re)load; a blank canvas
   after load means reload at a real viewport. Mtime-touch a src file to
-  force a Vite reload without content changes.
+  force a Vite reload without content changes. When recovering, prefer an
+  in-page location.reload() over the browser tool's navigate — navigate can
+  re-trigger the 0×0 state.
+- In-page eval CANNOT dynamic-import three/addons under the dev server in a
+  nested worktree (Vite fs.allow boundary + bare-specifier rewriting happens
+  only in the transform pipeline). For verification that needs an addon, add
+  a temporary DEV-gated hook in src/ so Vite transforms it, run the check,
+  then revert the hook before committing — and prove the revert (grep +
+  clean diff).
 
 ## Decisions (don't re-litigate)
 - Point cloud is the DEFAULT view; the solid render stays behind `P`.

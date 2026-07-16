@@ -27,11 +27,11 @@
 ~~2. B — README refresh: document `P` and `E` in the Controls table; update
    hero imagery/copy for the point-cloud default look; make clear this fork
    adds the point-cloud + export features on top of upstream.~~
-3. C — GLB export: `G` key downloads a binary .glb (GLTFExporter, embedded
+~~3. C — GLB export: `G` key downloads a binary .glb (GLTFExporter, embedded
    textures); caption updated; verify by re-parsing the exported blob. Also
    add two README micro-edits while touching this area: a `G` row in the
    Controls table, and a one-line Quick-start disambiguation that the
-   hosted demo is the upstream solid-render version.
+   hosted demo is the upstream solid-render version.~~
 4. D — Point-cloud controls: `+`/`-` adjust point size; `C` cycles color
    mode (texture / height gradient / depth fade); current mode surfaced in
    the caption. Also expose the same via the dev __hooks for testability.
@@ -42,6 +42,11 @@
    NaN-poison the camera; verify by loading at 0×0 then resizing.
 
 ## Done
+- 2026-07-16 — Task C (4815acd on dev): `G` key binary glTF export
+  (GLTFExporter, embedded textures) — kit meshes only, point clouds hidden
+  for the parse and restored to the active points-mode state afterward.
+  GLB ~2.83 MB (2,829,328-2,829,364 B observed across export calls; size
+  varies slightly with sail/mast animation phase at export time).
 - 2026-07-16 — Task B (bf126ab on dev): README + docs refresh — `P`/`E`
   Controls rows, point-cloud hero shot (old solid hero recaptioned below),
   fork-vs-upstream positioning paragraph, `main` -> `master` wording fixes.
