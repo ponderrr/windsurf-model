@@ -118,7 +118,9 @@ function battenDamp(u, v) {
  * Build the sail group: cloth mesh, batten rods, luff sleeve, and flutter updater.
  *
  * @param {object} shape - Sail shape from loadSailShape().
- * @returns {{ mesh: THREE.Group, update: (t: number) => void }}
+ * @returns {{ mesh: THREE.Group, update: (t: number, needNormals?: boolean) => void }}
+ *   update deforms the cloth each frame; pass needNormals=false to skip the
+ *   vertex-normal recompute when nothing lit reads them (points mode).
  */
 export function createSail(shape) {
   const NU = 260, NV = 36;
@@ -258,7 +260,7 @@ export function createSail(shape) {
     1 + 0.3 * dev + 0.14 * Math.sin(1.5 * t - 2.4 * u) * (0.3 + 0.7 * g);
   const flutterAt = (t, u, v, damp, amp) =>
     amp * damp * v * v * (0.25 + 0.75 * u) * Math.sin(4.5 * t + 9 * v + 6 * u);
-  function update(t) {
+  function update(t, needNormals = true) {
     const g = gustAt(t);
     const dev = (g - 0.5) * 2; // -1..1 around the mean wind
     const flutterAmp = 0.005 + 0.013 * g;
@@ -273,7 +275,7 @@ export function createSail(shape) {
         + flutterAt(t, u, v, damp, flutterAmp) + flexBend * u * u;
     }
     geo.attributes.position.needsUpdate = true;
-    geo.computeVertexNormals();
+    if (needNormals) geo.computeVertexNormals();
 
     // Rods follow the cloth: shift each tube ring by the same deformation
     // evaluated at its station.

@@ -135,7 +135,7 @@ async function init() {
   if (import.meta.env.DEV) {
     window.__kit = kit;
     // Manual frame step for environments where rAF is throttled (tests).
-    window.__tick = (t) => { sail.update(t); cloud.update(); controls.update(); renderer.render(scene, camera); };
+    window.__tick = (t) => { sail.update(t, !pointsMode); cloud.update(); controls.update(); renderer.render(scene, camera); };
     // STL bytes as base64, for pulling exports out of headless sessions.
     window.__stlBase64 = () => {
       kit.updateMatrixWorld(true);
@@ -163,7 +163,7 @@ async function init() {
 
   renderer.render(scene, camera); // paint immediately; rAF can be throttled in background tabs
   renderer.setAnimationLoop((t) => {
-    sail.update(t / 1000);
+    sail.update(t / 1000, !pointsMode);
     cloud.update();
     controls.update();
     renderer.render(scene, camera);
