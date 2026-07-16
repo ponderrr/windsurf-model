@@ -28,6 +28,17 @@
   silhouettes). Entry point src/main.js; per-part builders in src/.
 
 ## Live state
+- 2026-07-16 — Task A merged to dev (c27809d): `sail.update(t, needNormals =
+  true)` in src/sail.js skips `geo.computeVertexNormals()` while points mode
+  is active; both call sites in src/main.js (animation loop and
+  `window.__tick`) pass `!pointsMode`. `needsUpdate` on the position
+  attribute stays unconditional; solid mode (`P`) still computes normals so
+  shading stays correct. Builder-measured 1.552 -> 0.925 ms/frame (-40%) via
+  60x __tick medians; reviewer re-measured 1.000 ms/frame median on the same
+  method post-merge. Baselines vary by machine/pane size — the ~2.6 ms
+  figure further down was a different session, not a regression. Carries one
+  pre-approved lockfile commit (package-lock.json `license` field sync, no
+  dependency changes).
 - 2026-07-15 — `dev` created. Baseline commit: point-cloud rendering mode
   (default ON, `P` toggles solid; src/pointCloud.js — area-weighted surface
   sampling, ~220k points across 25 clouds, texture-sampled colors, clouds

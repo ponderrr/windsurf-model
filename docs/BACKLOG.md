@@ -20,10 +20,10 @@
   anything you could not verify as an honest gap. Never fabricate numbers.
 
 ## Ranked queue
-1. A — Points-mode perf: skip per-frame computeVertexNormals() (and any
+~~1. A — Points-mode perf: skip per-frame computeVertexNormals() (and any
    other solid-only per-frame work) while point mode is active; make sure
    toggling back to solid restores correct shading. Gate: __tick timing
-   before/after, solid mode visually intact after a toggle round-trip.
+   before/after, solid mode visually intact after a toggle round-trip.~~
 2. B — README refresh: document `P` and `E` in the Controls table; update
    hero imagery/copy for the point-cloud default look; make clear this fork
    adds the point-cloud + export features on top of upstream.
@@ -36,5 +36,9 @@
    reassembling instead of a hard swap.
 
 ## Done
+- 2026-07-16 — Task A (c27809d on dev): skip per-frame
+  computeVertexNormals() while points mode is active. Builder-measured
+  1.552 -> 0.925 ms/frame (-40%); reviewer re-measured 1.000 ms/frame
+  median post-merge.
 - 2026-07-15 — Task 0 baseline (54532d7 on dev): point-cloud mode + STL
   export committed; docs scaffolding; *.stl ignored.
