@@ -1,7 +1,7 @@
 # Backlog — windsurf-model
 
 ## Guardrails (copy into every builder brief)
-- Branch off `origin/dev`, never `main`. Every build task ends with
+- Branch off `origin/dev`, never `master`. Every build task ends with
   `git push -u origin <branch>`.
 - Shared checkout at /Users/frosty/Projects/windsurf-model: verify the
   current branch before every commit, stage by explicit path, never

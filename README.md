@@ -7,11 +7,18 @@
 
 A photorealistic, fully procedural 3D viewer for a Severne Mach slalom windsurf kit — 6.5 m² cambered race sail, mast, wishbone boom, slalom board, and fin — rendered in the browser with [Three.js](https://threejs.org/). There is no 3D-modeled asset anywhere in this project: every mesh is generated from math at load time, and every texture and silhouette is extracted from the manufacturer's own catalog photography. Five PNGs in, one interactive rig out.
 
+This repository is a fork of [hughes-research/windsurf-model](https://github.com/hughes-research/windsurf-model) that adds two features on top of the upstream project: a point-cloud rendering mode — every mesh surface sampled into ~220k colored points, with colors read from the same catalog textures, now the default view — and a one-key binary STL export of the kit. The live-demo badge and links above point at the upstream deploy, which runs the original solid-render version; the fork's features currently run locally (`npm install && npm run dev`).
+
 Drag to orbit, scroll to zoom, and the kit auto-rotates gently when idle — a clean studio presentation built for inspecting a product, not a game or a simulator.
 
 <p align="center">
-  <img src="docs/images/hero.png" alt="Severne Mach 6.5 kit rendered in the studio viewer" width="800"><br>
-  <sub>Sail, mast, wishbone boom, board, and fin — every mesh generated from math, every texture and silhouette read from a catalog photo.</sub>
+  <img src="docs/images/hero-points.png" alt="Severne Mach 6.5 kit rendered as a colored point cloud in the studio viewer" width="800"><br>
+  <sub>The kit as it boots: ~220k surface-sampled points, colors read from the catalog photos, still animated by the wind model.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/hero.png" alt="Severne Mach 6.5 kit in the original solid render" width="800"><br>
+  <sub>The original solid render, one <code>P</code> keypress away — sail, mast, wishbone boom, board, and fin, every mesh generated from math, every texture and silhouette read from a catalog photo.</sub>
 </p>
 
 <p align="center">
@@ -73,6 +80,8 @@ The app is a static site once built — `dist/` can be hosted anywhere that serv
 |---|---|
 | Click + drag | Orbit the camera around the kit |
 | Scroll / pinch | Zoom in and out (clamped 2.5 m – 14 m from the target) |
+| `P` | Toggle point-cloud ↔ original solid render (point cloud is the default) |
+| `E` | Download the kit as a binary STL (meters, world-space; open surfaces — not watertight for printing) |
 | Idle for 3 seconds | Camera resumes a slow auto-rotate |
 | Window resize | Camera automatically re-frames the whole kit |
 

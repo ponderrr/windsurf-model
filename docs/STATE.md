@@ -8,8 +8,8 @@
   self-contained briefs, and reviews relayed reports; disposable builder
   sessions execute exactly one job each; the human relays reports between
   them. The coordinator never edits the repo directly.
-- Integration branch: `dev`. `main` stays at the fork baseline; merging
-  dev -> main is the human's call.
+- Integration branch: `dev`. `master` stays at the fork baseline; merging
+  dev -> master is the human's call.
 - Build tasks branch off `origin/dev`, push their branch, and end with a
   relay report. An independent review/merge task verifies claims (scope
   diff, spot-checks, re-run gates) before merging to dev and then updates
