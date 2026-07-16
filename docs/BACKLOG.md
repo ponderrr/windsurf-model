@@ -24,18 +24,27 @@
    other solid-only per-frame work) while point mode is active; make sure
    toggling back to solid restores correct shading. Gate: __tick timing
    before/after, solid mode visually intact after a toggle round-trip.~~
-2. B — README refresh: document `P` and `E` in the Controls table; update
+~~2. B — README refresh: document `P` and `E` in the Controls table; update
    hero imagery/copy for the point-cloud default look; make clear this fork
-   adds the point-cloud + export features on top of upstream.
+   adds the point-cloud + export features on top of upstream.~~
 3. C — GLB export: `G` key downloads a binary .glb (GLTFExporter, embedded
-   textures); caption updated; verify by re-parsing the exported blob.
+   textures); caption updated; verify by re-parsing the exported blob. Also
+   add two README micro-edits while touching this area: a `G` row in the
+   Controls table, and a one-line Quick-start disambiguation that the
+   hosted demo is the upstream solid-render version.
 4. D — Point-cloud controls: `+`/`-` adjust point size; `C` cycles color
    mode (texture / height gradient / depth fade); current mode surfaced in
    the caption. Also expose the same via the dev __hooks for testability.
 5. E — Dissolve transition: toggling `P` animates points scattering out /
    reassembling instead of a hard swap.
+6. F — Viewport-zero guard: make frameKit()/the resize handler no-ops (or
+   clamp) when innerWidth/innerHeight is 0 so a hidden-pane load can't
+   NaN-poison the camera; verify by loading at 0×0 then resizing.
 
 ## Done
+- 2026-07-16 — Task B (bf126ab on dev): README + docs refresh — `P`/`E`
+  Controls rows, point-cloud hero shot (old solid hero recaptioned below),
+  fork-vs-upstream positioning paragraph, `main` -> `master` wording fixes.
 - 2026-07-16 — Task A (c27809d on dev): skip per-frame
   computeVertexNormals() while points mode is active. Builder-measured
   1.552 -> 0.925 ms/frame (-40%); reviewer re-measured 1.000 ms/frame

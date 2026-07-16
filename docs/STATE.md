@@ -28,6 +28,11 @@
   silhouettes). Entry point src/main.js; per-part builders in src/.
 
 ## Live state
+- 2026-07-16 — Task B merged to dev (bf126ab): README + docs now document
+  the fork's point-cloud default, `P`/`E` controls, and the fork-vs-upstream
+  positioning (live demo runs upstream's solid render); new hero-points.png
+  leads the README with the old hero.png recaptioned below it; STATE/BACKLOG
+  `main` -> `master` wording fixed to match the repo's actual default branch.
 - 2026-07-16 — Task A merged to dev (c27809d): `sail.update(t, needNormals =
   true)` in src/sail.js skips `geo.computeVertexNormals()` while points mode
   is active; both call sites in src/main.js (animation loop and
@@ -62,6 +67,11 @@
   +0.09 lift so dark carbon reads on the dark background.
 - sail.update() deformation is z-only; cloud follow recomputes xyz anyway
   (cheap, more robust).
+- If the page loads while the embedded pane viewport is 0×0, camera.aspect
+  becomes NaN and frameKit() NaN-poisons camera.position permanently (no
+  resize recovers it) — size the pane first, then (re)load; a blank canvas
+  after load means reload at a real viewport. Mtime-touch a src file to
+  force a Vite reload without content changes.
 
 ## Decisions (don't re-litigate)
 - Point cloud is the DEFAULT view; the solid render stays behind `P`.
