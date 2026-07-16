@@ -55,6 +55,7 @@ The work — the code, the photo-to-geometry pipeline, all of it — is free: GP
 ## Quick start
 
 Just want to look at the kit? **[winsurfmodel.netlify.app](https://winsurfmodel.netlify.app)** — nothing to install.
+(The hosted demo is the upstream project's solid-render version — this fork's point-cloud view and exporters currently run locally.)
 
 To run it locally, requires [Node.js](https://nodejs.org/) 18 or later.
 
@@ -82,6 +83,7 @@ The app is a static site once built — `dist/` can be hosted anywhere that serv
 | Scroll / pinch | Zoom in and out (clamped 2.5 m – 14 m from the target) |
 | `P` | Toggle point-cloud ↔ original solid render (point cloud is the default) |
 | `E` | Download the kit as a binary STL (meters, world-space; open surfaces — not watertight for printing) |
+| `G` | Download the kit as a binary glTF (.glb) with materials and textures embedded |
 | Idle for 3 seconds | Camera resumes a slow auto-rotate |
 | Window resize | Camera automatically re-frames the whole kit |
 
