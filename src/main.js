@@ -78,7 +78,6 @@ async function init() {
   // Point-cloud rendering: sample every surface into colored points that
   // follow the wind-deformed cloth. Press P to flip back to solid.
   const cloud = pointCloudify(kit);
-  let pointsMode = true;
 
   // Binary STL of the kit meshes, world-space, in whatever pose the wind
   // has the cloth in right now. Sheets and tubes are open surfaces — fine
@@ -107,7 +106,7 @@ async function init() {
       kit.updateMatrixWorld(true);
       return await new GLTFExporter().parseAsync(kit, { binary: true });
     } finally {
-      for (const c of clouds) c.visible = pointsMode;
+      for (const c of clouds) c.visible = cloud.isPointsMode();
     }
   };
   const exportGLB = async () => {
@@ -133,10 +132,10 @@ async function init() {
 
   addEventListener('keydown', (e) => {
     const k = e.key.toLowerCase();
-    if (k === 'p') { pointsMode = !pointsMode; cloud.setPointsMode(pointsMode); }
+    if (k === 'p' && !cloud.isTransitioning()) cloud.setPointsMode(!cloud.isPointsMode());
     if (k === 'e') exportSTL();
     if (k === 'g') exportGLB();
-    if (!pointsMode) return; // size/color keys only apply to the point cloud
+    if (!cloud.isPointsMode() || cloud.isTransitioning()) return; // size/color keys only apply to the settled point cloud
     if (k === '+' || k === '=' || k === '-' || k === '_') {
       const grow = k === '+' || k === '=';
       cloud.setPointSize(cloud.getPointSize() * (grow ? SIZE_STEP : 1 / SIZE_STEP));
@@ -193,7 +192,7 @@ async function init() {
     window.__kit = kit;
     window.__cloud = cloud;
     // Manual frame step for environments where rAF is throttled (tests).
-    window.__tick = (t) => { sail.update(t, !pointsMode); cloud.update(); controls.update(); renderer.render(scene, camera); };
+    window.__tick = (t) => { sail.update(t, !cloud.isPointsMode()); cloud.update(t / 1000); controls.update(); renderer.render(scene, camera); };
     // STL bytes as base64, for pulling exports out of headless sessions.
     window.__stlBase64 = () => {
       kit.updateMatrixWorld(true);
@@ -223,8 +222,8 @@ async function init() {
 
   renderer.render(scene, camera); // paint immediately; rAF can be throttled in background tabs
   renderer.setAnimationLoop((t) => {
-    sail.update(t / 1000, !pointsMode);
-    cloud.update();
+    sail.update(t / 1000, !cloud.isPointsMode());
+    cloud.update(t / 1000);
     controls.update();
     renderer.render(scene, camera);
   });

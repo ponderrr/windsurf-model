@@ -57,6 +57,30 @@ const DARK_LIFT = 0.09;
 /** Brightness boost for texture-sampled points — stands in for scene lighting. */
 const TEX_BOOST = 1.3;
 
+/** Dissolve transition duration, seconds. */
+const TRANSITION_DURATION = 0.65;
+
+/** Scatter distance range, meters: nearest point flies out this far, farthest this much farther. */
+const SCATTER_MIN = 0.25;
+const SCATTER_RANGE = 0.55;
+
+/**
+ * Deterministic pseudo-random unit float from an integer seed (no Math.random,
+ * so scatter directions stay stable across rebuilds). Chris Wellons' lowbias32.
+ */
+function hash01(n) {
+  let x = (n ^ 0x9e3779b9) >>> 0;
+  x = Math.imul(x ^ (x >>> 16), 0x21f0aaad) >>> 0;
+  x = Math.imul(x ^ (x >>> 15), 0x735a2d97) >>> 0;
+  x ^= x >>> 15;
+  return (x >>> 0) / 4294967296;
+}
+
+/** Cubic ease, symmetric in/out — used for both dissolve directions. */
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+}
+
 /** Soft round sprite shared by all clouds. */
 function dotTexture() {
   const c = document.createElement('canvas');
@@ -102,10 +126,20 @@ function texReader(texture) {
  * transforms — including animated ones like the flexing tip cap. Source
  * materials are hidden (not the meshes) so child clouds keep rendering.
  *
+ * Toggling between modes runs a 0.65 s dissolve: leaving points scatters
+ * them outward as the solid fades in; entering points starts scattered and
+ * reassembles onto the surface. Each cloud gets a fixed per-point scatter
+ * offset (hashed from its index, so it's stable and needs no RNG at
+ * transition time); `update(tSec)` blends `followPos + scatter * k` with
+ * `k` eased over the transition window. Reduced-motion users get the old
+ * instant swap instead.
+ *
  * @param {THREE.Object3D} root - Assembled kit.
  * @returns {{
- *   update: () => void,
+ *   update: (tSec: number) => void,
  *   setPointsMode: (on: boolean) => void,
+ *   isPointsMode: () => boolean,
+ *   isTransitioning: () => boolean,
  *   setPointSize: (m: number) => void,
  *   getPointSize: () => number,
  *   setColorMode: (mode: 'texture' | 'height' | 'depth') => void,
@@ -121,7 +155,7 @@ export function pointCloudify(root) {
     sizeAttenuation: true,
     toneMapped: false,
   });
-  const clouds = []; // { srcAttr, last, tri, bary, count, geo, points }
+  const clouds = []; // { srcAttr, last, tri, bary, count, geo, points, followPos, scatter }
   const sourceMats = [];
   const readerCache = new Map();
   const meshes = [];
@@ -136,6 +170,10 @@ export function pointCloudify(root) {
 
   let enabled = true;
   let colorMode = 'texture';
+  let lastTSec = 0;
+  let transition = null; // { toPoints, startT } while a dissolve is running
+  const reducedMotion = typeof matchMedia === 'function'
+    && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const fog = new THREE.Fog(FOG_COLOR, FOG_NEAR, FOG_FAR);
 
   // Fog exists exactly while (points mode && depth fade). The scene is
@@ -149,22 +187,64 @@ export function pointCloudify(root) {
     mat.needsUpdate = true; // fog on/off changes the points shader program
   };
 
+  // Ends the active transition. →solid deferred its mode flip until now
+  // (see setPointsMode below); →points already flipped at the start, so
+  // there's nothing left to do but drop the transition state.
+  const finishTransition = () => {
+    const toPoints = transition.toPoints;
+    transition = null;
+    if (toPoints) return;
+    enabled = false;
+    for (const m of sourceMats) m.visible = true;
+    for (const c of clouds) c.points.visible = false;
+    syncFog();
+  };
+
   return {
-    /** Re-follow any source geometry whose positions changed this frame. */
-    update() {
+    /** Re-follow deformed geometry and, mid-dissolve, blend in the scatter offset. */
+    update(tSec) {
+      lastTSec = tSec;
       if (!enabled) return;
-      for (const c of clouds) {
-        if (c.srcAttr.version === c.last) continue;
-        c.last = c.srcAttr.version;
-        follow(c);
+      if (transition) {
+        for (const c of clouds) refreshFollow(c);
+        const t = Math.min(1, (tSec - transition.startT) / TRANSITION_DURATION);
+        const eased = easeInOutCubic(t);
+        const k = transition.toPoints ? 1 - eased : eased;
+        for (const c of clouds) commitDisplay(c, k);
+        if (t >= 1) finishTransition();
+      } else {
+        for (const c of clouds) {
+          if (refreshFollow(c)) commitDisplay(c, 0);
+        }
       }
     },
-    /** Switch between point-cloud and original solid rendering. */
+    /** Kick off (or reduced-motion: instantly finish) the points ↔ solid dissolve. */
     setPointsMode(on) {
-      enabled = on;
-      for (const m of sourceMats) m.visible = !on;
-      for (const c of clouds) c.points.visible = on;
-      syncFog();
+      if (on === enabled || transition) return;
+      if (reducedMotion) {
+        enabled = on;
+        for (const m of sourceMats) m.visible = !on;
+        for (const c of clouds) c.points.visible = on;
+        syncFog();
+        return;
+      }
+      if (on) {
+        // →points: mode flips now — solid hides immediately, points appear
+        // fully scattered and converge onto the surface over the dissolve.
+        enabled = true;
+        for (const m of sourceMats) m.visible = false;
+        for (const c of clouds) c.points.visible = true;
+        syncFog();
+      }
+      // →solid: points stay visible/scattering and the solid stays hidden
+      // until completeTransition() flips the mode at the end.
+      transition = { toPoints: on, startT: lastTSec };
+    },
+    isPointsMode() {
+      return enabled;
+    },
+    isTransitioning() {
+      return !!transition;
     },
     /** Set the shared sprite diameter in meters (clamped to a sane range). */
     setPointSize(m) {
@@ -317,21 +397,59 @@ function buildCloud(mesh, mat, readerCache) {
   points.name = `cloud:${mesh.name || mesh.geometry.type}`;
   points.frustumCulled = false; // cloth deforms; skip stale-sphere culling
   mesh.add(points);
-  return { srcAttr: posA, last: posA.version, tri, bary, count: emitted, geo: pgeo, points };
+
+  // Base follow position, independent of the geo's position buffer (which
+  // gets overwritten with the scattered display position during a dissolve).
+  const followPos = positions.slice(0, emitted * 3);
+
+  // Per-point scatter direction+distance, hashed from the index so it's
+  // deterministic and needs no RNG at transition time.
+  const scatter = new Float32Array(emitted * 3);
+  for (let i = 0; i < emitted; i++) {
+    const k = i * 3;
+    const theta = 2 * Math.PI * hash01(k);
+    const z = 2 * hash01(k + 1) - 1;
+    const r = Math.sqrt(Math.max(0, 1 - z * z));
+    const dist = SCATTER_MIN + SCATTER_RANGE * hash01(k + 2);
+    scatter[k] = r * Math.cos(theta) * dist;
+    scatter[k + 1] = r * Math.sin(theta) * dist;
+    scatter[k + 2] = z * dist;
+  }
+
+  return { srcAttr: posA, last: posA.version, tri, bary, count: emitted, geo: pgeo, points, followPos, scatter };
 }
 
-/** Recompute point positions from the (deformed) source geometry. */
+/** Recompute the cloud's base follow position from the (deformed) source geometry. */
 function follow(cloud) {
   const src = cloud.srcAttr.array;
-  const pos = cloud.geo.attributes.position.array;
+  const out = cloud.followPos;
   const { tri, bary, count } = cloud;
   for (let i = 0; i < count; i++) {
     const k = i * 3;
     const a = tri[k] * 3, b = tri[k + 1] * 3, c = tri[k + 2] * 3;
     const w0 = bary[k], w1 = bary[k + 1], w2 = bary[k + 2];
-    pos[k] = w0 * src[a] + w1 * src[b] + w2 * src[c];
-    pos[k + 1] = w0 * src[a + 1] + w1 * src[b + 1] + w2 * src[c + 1];
-    pos[k + 2] = w0 * src[a + 2] + w1 * src[b + 2] + w2 * src[c + 2];
+    out[k] = w0 * src[a] + w1 * src[b] + w2 * src[c];
+    out[k + 1] = w0 * src[a + 1] + w1 * src[b + 1] + w2 * src[c + 1];
+    out[k + 2] = w0 * src[a + 2] + w1 * src[b + 2] + w2 * src[c + 2];
+  }
+}
+
+/** Re-follow the cloud if its source geometry changed this frame; reports whether it did. */
+function refreshFollow(cloud) {
+  if (cloud.srcAttr.version === cloud.last) return false;
+  cloud.last = cloud.srcAttr.version;
+  follow(cloud);
+  return true;
+}
+
+/** Write the displayed position buffer as followPos + scatter * k (k=0: pure follow). */
+function commitDisplay(cloud, k) {
+  const pos = cloud.geo.attributes.position.array;
+  const { followPos, scatter, count } = cloud;
+  if (k === 0) {
+    pos.set(followPos);
+  } else {
+    for (let i = 0; i < count * 3; i++) pos[i] = followPos[i] + scatter[i] * k;
   }
   cloud.geo.attributes.position.needsUpdate = true;
 }

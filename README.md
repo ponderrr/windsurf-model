@@ -81,11 +81,11 @@ The app is a static site once built — `dist/` can be hosted anywhere that serv
 |---|---|
 | Click + drag | Orbit the camera around the kit |
 | Scroll / pinch | Zoom in and out (clamped 2.5 m – 14 m from the target) |
-| `P` | Toggle point-cloud ↔ original solid render (point cloud is the default) |
+| `P` | Toggle point cloud ↔ solid render (animated dissolve) |
 | `E` | Download the kit as a binary STL (meters, world-space; open surfaces — not watertight for printing) |
 | `G` | Download the kit as a binary glTF (.glb) with materials and textures embedded |
-| + / − | Grow / shrink the points (point-cloud mode) |
-| C | Cycle point colors: texture / height gradient / depth fade (point-cloud mode) |
+| `+` / `−` | Grow / shrink the points (point-cloud mode) |
+| `C` | Cycle point colors: texture / height gradient / depth fade (point-cloud mode) |
 | Idle for 3 seconds | Camera resumes a slow auto-rotate |
 | Window resize | Camera automatically re-frames the whole kit |
 
