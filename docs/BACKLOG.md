@@ -35,8 +35,8 @@
 ~~4. D — Point-cloud controls: `+`/`-` adjust point size; `C` cycles color
    mode (texture / height gradient / depth fade); current mode surfaced in
    the caption. Also expose the same via the dev __hooks for testability.~~
-5. E — Dissolve transition: toggling `P` animates points scattering out /
-   reassembling instead of a hard swap.
+~~5. E — Dissolve transition: toggling `P` animates points scattering out /
+   reassembling instead of a hard swap.~~
 6. F — Viewport-zero guard: make frameKit()/the resize handler no-ops (or
    clamp) when innerWidth/innerHeight is 0 so a hidden-pane load can't
    NaN-poison the camera; verify by loading at 0×0 then resizing.
@@ -46,6 +46,11 @@
    config; gate: warning gone, build passes, E/G exports still parse.
 
 ## Done
+- 2026-07-17 — Task E (37809eb on dev): dissolve transition — 0.65 s eased
+  scatter/reassemble on `P` (per-point hashed scatter 0.25–0.80 m, wind
+  keeps deforming the cloth mid-transition), keys ignored while
+  transitioning, reduced-motion instant-swap fallback, fog invariant held
+  at both flip boundaries.
 - 2026-07-17 — Task D (e421630 on dev): point-cloud controls — `+`/`-` size
   steps (x1.25, clamped 0.003–0.05 m), `C` color cycle
   texture/height/depth, depth-mode scene fog with the fog invariant held

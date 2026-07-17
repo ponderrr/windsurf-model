@@ -28,6 +28,16 @@
   silhouettes). Entry point src/main.js; per-part builders in src/.
 
 ## Live state
+- 2026-07-17 — Task E merged to dev (37809eb): dissolve transition — `P` now
+  runs a 0.65 s eased dissolve instead of a hard swap (→solid: points scatter
+  outward 0.25–0.80 m along per-point index-hashed offsets, solid appears at
+  completion; →points: solid hides immediately and the scattered points
+  reassemble onto the wind-deformed surface). `P`/`+`/`-`/`C` are ignored
+  mid-transition; reduced-motion users get the old instant swap; the fog
+  invariant follows the internal mode flip (fog drops at →solid END, returns
+  at →points START). main.js no longer owns a pointsMode boolean — mode state
+  lives in the pointCloudify handle (`isPointsMode()`/`isTransitioning()`),
+  and `cloud.update(tSec)` now takes the frame time from both call sites.
 - 2026-07-17 — Task D merged to dev (e421630): point-cloud controls — `+`/`-`
   resize points (x1.25 per press, clamped 0.003–0.05 m on the shared
   PointsMaterial), `C` cycles texture / height gradient / depth fade colors
@@ -68,7 +78,12 @@
 - The embedded browser pane used for verification throttles rAF to ZERO:
   the render loop never runs on its own. Dev builds expose window.__tick(t)
   (manual frame step), window.__kit, and window.__stlBase64(). Drive frames
-  with __tick for deterministic verification.
+  with __tick for deterministic verification. HOWEVER, the pane's screenshot
+  action flushes several REAL rAF callbacks with wall-clock timestamps — a
+  stray real frame can advance/complete time-based state (e.g. a dissolve
+  transition) before capture. Take state-sensitive readings via __tick
+  BEFORE screenshots, and freeze cloud.update (temporarily no-op __tick /
+  the handle's update) when capturing mid-transition states.
 - Browser-pane downloads are sandboxed (anchor-click downloads vanish). To
   extract a file from the page, POST it as base64 to a localhost HTTP
   receiver, or verify in-page via __stlBase64().
