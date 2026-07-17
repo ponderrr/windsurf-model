@@ -84,6 +84,8 @@ The app is a static site once built — `dist/` can be hosted anywhere that serv
 | `P` | Toggle point-cloud ↔ original solid render (point cloud is the default) |
 | `E` | Download the kit as a binary STL (meters, world-space; open surfaces — not watertight for printing) |
 | `G` | Download the kit as a binary glTF (.glb) with materials and textures embedded |
+| + / − | Grow / shrink the points (point-cloud mode) |
+| C | Cycle point colors: texture / height gradient / depth fade (point-cloud mode) |
 | Idle for 3 seconds | Camera resumes a slow auto-rotate |
 | Window resize | Camera automatically re-frames the whole kit |
 

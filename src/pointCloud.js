@@ -24,6 +24,27 @@ const MIN_POINTS = 250;
 /** Point sprite diameter in meters (sizeAttenuation is on). */
 const POINT_SIZE = 0.011;
 
+/** Clamp range for the adjustable point size, meters. */
+const SIZE_MIN = 0.003;
+const SIZE_MAX = 0.05;
+
+/** Height-gradient stops: deep blue (low) → teal (mid) → coral (high). */
+const HEIGHT_LOW = 0x1f4b99;
+const HEIGHT_MID = 0x37b6a0;
+const HEIGHT_HIGH = 0xff5340;
+
+/** World-y span of the kit the height gradient maps onto (fin tip → masthead). */
+const HEIGHT_Y_MIN = 0.12;
+const HEIGHT_Y_MAX = 4.30;
+
+/** Uniform point tint while depth-fade mode is active. */
+const DEPTH_TINT = 0xdfe6ee;
+
+/** Scene fog for depth-fade mode — color matches the studio backdrop. */
+const FOG_COLOR = 0x14161a;
+const FOG_NEAR = 4;
+const FOG_FAR = 12;
+
 /** Reject sampled texels below this alpha (sail silhouette edges). */
 const ALPHA_MIN = 64;
 
@@ -82,7 +103,14 @@ function texReader(texture) {
  * materials are hidden (not the meshes) so child clouds keep rendering.
  *
  * @param {THREE.Object3D} root - Assembled kit.
- * @returns {{ update: () => void, setPointsMode: (on: boolean) => void }}
+ * @returns {{
+ *   update: () => void,
+ *   setPointsMode: (on: boolean) => void,
+ *   setPointSize: (m: number) => void,
+ *   getPointSize: () => number,
+ *   setColorMode: (mode: 'texture' | 'height' | 'depth') => void,
+ *   getColorMode: () => 'texture' | 'height' | 'depth',
+ * }}
  */
 export function pointCloudify(root) {
   const mat = new THREE.PointsMaterial({
@@ -107,6 +135,20 @@ export function pointCloudify(root) {
   }
 
   let enabled = true;
+  let colorMode = 'texture';
+  const fog = new THREE.Fog(FOG_COLOR, FOG_NEAR, FOG_FAR);
+
+  // Fog exists exactly while (points mode && depth fade). The scene is
+  // resolved as root.parent at call time — the kit is in the scene by then.
+  const syncFog = () => {
+    const scene = root.parent;
+    if (!scene) return;
+    const want = enabled && colorMode === 'depth';
+    if (!!scene.fog === want) return;
+    scene.fog = want ? fog : null;
+    mat.needsUpdate = true; // fog on/off changes the points shader program
+  };
+
   return {
     /** Re-follow any source geometry whose positions changed this frame. */
     update() {
@@ -122,8 +164,63 @@ export function pointCloudify(root) {
       enabled = on;
       for (const m of sourceMats) m.visible = !on;
       for (const c of clouds) c.points.visible = on;
+      syncFog();
+    },
+    /** Set the shared sprite diameter in meters (clamped to a sane range). */
+    setPointSize(m) {
+      mat.size = THREE.MathUtils.clamp(m, SIZE_MIN, SIZE_MAX);
+    },
+    getPointSize() {
+      return mat.size;
+    },
+    /** Swap per-point colors: 'texture' | 'height' | 'depth' (adds scene fog). */
+    setColorMode(mode) {
+      if (mode !== 'texture' && mode !== 'height' && mode !== 'depth') return;
+      colorMode = mode;
+      if (mode === 'height') root.updateMatrixWorld(true); // world y needs fresh matrices
+      for (const c of clouds) c.geo.setAttribute('color', colorAttrFor(c, mode));
+      syncFog();
+    },
+    getColorMode() {
+      return colorMode;
     },
   };
+}
+
+/**
+ * Lazily build and cache the color attribute for one cloud in one mode.
+ * The baked texture attribute is captured before the first swap; height and
+ * depth attributes are computed once and reused. Height colors stay valid
+ * across wind deformation because it only rewrites point z, never y.
+ */
+function colorAttrFor(cloud, mode) {
+  const cache = cloud.colorCache || (cloud.colorCache = { texture: cloud.geo.getAttribute('color') });
+  if (cache[mode]) return cache[mode];
+  const arr = new Float32Array(cloud.count * 3);
+  const col = new THREE.Color();
+  if (mode === 'depth') {
+    col.set(DEPTH_TINT);
+    for (let i = 0; i < cloud.count; i++) {
+      const k = i * 3;
+      arr[k] = col.r; arr[k + 1] = col.g; arr[k + 2] = col.b;
+    }
+  } else {
+    const lo = new THREE.Color(HEIGHT_LOW);
+    const mid = new THREE.Color(HEIGHT_MID);
+    const hi = new THREE.Color(HEIGHT_HIGH);
+    const pos = cloud.geo.getAttribute('position');
+    const v = new THREE.Vector3();
+    for (let i = 0; i < cloud.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(cloud.points.matrixWorld);
+      const t = THREE.MathUtils.clamp((v.y - HEIGHT_Y_MIN) / (HEIGHT_Y_MAX - HEIGHT_Y_MIN), 0, 1);
+      if (t < 0.5) col.lerpColors(lo, mid, t * 2);
+      else col.lerpColors(mid, hi, (t - 0.5) * 2);
+      const k = i * 3;
+      arr[k] = col.r; arr[k + 1] = col.g; arr[k + 2] = col.b;
+    }
+  }
+  cache[mode] = new THREE.BufferAttribute(arr, 3);
+  return cache[mode];
 }
 
 /** Sample one mesh into a Points child; returns null for empty geometry. */
