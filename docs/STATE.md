@@ -28,6 +28,14 @@
   silhouettes). Entry point src/main.js; per-part builders in src/.
 
 ## Live state
+- 2026-07-17 — Task D merged to dev (e421630): point-cloud controls — `+`/`-`
+  resize points (x1.25 per press, clamped 0.003–0.05 m on the shared
+  PointsMaterial), `C` cycles texture / height gradient / depth fade colors
+  (per-cloud color attributes lazily cached; texture colors bitwise-restored
+  after a full cycle). Depth fade adds scene fog (0x14161a, near 4, far 12);
+  invariant "fog non-null exactly while points mode && depth" verified
+  through a `P` round-trip. Transient caption key feedback; dev handle
+  `window.__cloud` exposes set/get size and color mode.
 - 2026-07-16 — Task C merged to dev (4815acd): `G` key downloads a binary
   glTF (.glb) of the kit's solid meshes (GLTFExporter, embedded textures);
   point clouds are hidden for the parse and restored to whatever points-mode

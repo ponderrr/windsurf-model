@@ -32,16 +32,24 @@
    add two README micro-edits while touching this area: a `G` row in the
    Controls table, and a one-line Quick-start disambiguation that the
    hosted demo is the upstream solid-render version.~~
-4. D — Point-cloud controls: `+`/`-` adjust point size; `C` cycles color
+~~4. D — Point-cloud controls: `+`/`-` adjust point size; `C` cycles color
    mode (texture / height gradient / depth fade); current mode surfaced in
-   the caption. Also expose the same via the dev __hooks for testability.
+   the caption. Also expose the same via the dev __hooks for testability.~~
 5. E — Dissolve transition: toggling `P` animates points scattering out /
    reassembling instead of a hard swap.
 6. F — Viewport-zero guard: make frameKit()/the resize handler no-ops (or
    clamp) when innerWidth/innerHeight is 0 so a hidden-pane load can't
    NaN-poison the camera; verify by loading at 0×0 then resizing.
+7. G — Dedupe three.js: console warns 'Multiple instances of Three.js being
+   imported' since the GLB exporter import; fix via vite
+   resolve.dedupe:['three'] (or optimizeDeps.include) in a minimal vite
+   config; gate: warning gone, build passes, E/G exports still parse.
 
 ## Done
+- 2026-07-17 — Task D (e421630 on dev): point-cloud controls — `+`/`-` size
+  steps (x1.25, clamped 0.003–0.05 m), `C` color cycle
+  texture/height/depth, depth-mode scene fog with the fog invariant held
+  through a `P` round-trip, caption feedback, `window.__cloud` dev handle.
 - 2026-07-16 — Task C (4815acd on dev): `G` key binary glTF export
   (GLTFExporter, embedded textures) — kit meshes only, point clouds hidden
   for the parse and restored to the active points-mode state afterward.
