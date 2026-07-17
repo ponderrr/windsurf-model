@@ -40,7 +40,7 @@ const SIZE_STEP = 1.25;
 async function init() {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(Math.max(1, innerWidth), Math.max(1, innerHeight));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.1;
   document.body.appendChild(renderer.domElement);
@@ -165,13 +165,22 @@ async function init() {
   shadow.position.set(0.3, 0.001, 0);
   scene.add(shadow);
 
-  const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 100);
-  camera.position.set(5.4, 3, 6.6);
+  // Embedded panes can report a 0×0 window at load; 0/0 aspect is NaN and
+  // would poison the projection and camera position, so fall back to square.
+  const aspectOf = () => (innerWidth > 0 && innerHeight > 0) ? innerWidth / innerHeight : 1;
+  const CAMERA_HOME = new THREE.Vector3(5.4, 3, 6.6);
+  const camera = new THREE.PerspectiveCamera(38, aspectOf(), 0.1, 100);
+  camera.position.copy(CAMERA_HOME);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.target.set(0.6, 2.3, 0);
 
   /** Pull camera back until the whole kit fits the viewport. */
   const frameKit = () => {
+    // Self-heal: setLength() can never recover a non-finite position, so
+    // restore the home orbit first, and skip the fit while aspect is unusable.
+    if (![camera.position.x, camera.position.y, camera.position.z].every(Number.isFinite))
+      camera.position.copy(CAMERA_HOME);
+    if (!Number.isFinite(camera.aspect) || camera.aspect <= 0) return;
     const half = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
     const d = Math.max(5.2 / (2 * half), 5.4 / (2 * half * camera.aspect));
     camera.position.sub(controls.target).setLength(d).add(controls.target);
@@ -191,6 +200,7 @@ async function init() {
   if (import.meta.env.DEV) {
     window.__kit = kit;
     window.__cloud = cloud;
+    window.__camera = camera;
     // Manual frame step for environments where rAF is throttled (tests).
     window.__tick = (t) => { sail.update(t, !cloud.isPointsMode()); cloud.update(t / 1000); controls.update(); renderer.render(scene, camera); };
     // STL bytes as base64, for pulling exports out of headless sessions.
@@ -214,9 +224,9 @@ async function init() {
   }
 
   addEventListener('resize', () => {
-    camera.aspect = innerWidth / innerHeight;
+    camera.aspect = aspectOf();
     camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth, innerHeight);
+    renderer.setSize(Math.max(1, innerWidth), Math.max(1, innerHeight));
     frameKit();
   });
 
